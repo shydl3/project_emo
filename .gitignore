@@ -6,4 +6,4 @@ __pycache__/
 *.swp
 .venv/
 env/
-nima/weights/
+nima/weights/inception_resnet_weights.h5
