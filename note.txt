@@ -1,0 +1,20 @@
+此项目使用 project_emo_clip-prompt-matching 虚拟环境：
+此环境下可运行所有相关脚本
+
+conda activate project_emo_clip-prompt-matching
+
+input jpg steps：
+1. ANP prompt matching from 3244ANPs.txt
+2. NIMA aesthetics score and iqa quality score
+3. find corresponding ANP emotion scores from anp_emotion_scores.txt
+(pre generated using model_name = "j-hartmann/emotion-english-distilroberta-base")
+
+
+
+
+
+conda env export > env.yml
+conda env create -f env.yml
+
+conda env remove -n env_name
+conda clean --all

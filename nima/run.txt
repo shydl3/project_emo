@@ -1,0 +1,1 @@
+python evaluate_inception_resnet.py -img images/1-1.jpg -resize true
