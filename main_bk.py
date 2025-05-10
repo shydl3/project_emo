@@ -17,7 +17,7 @@ def resource_path(relative_path):
         return os.path.join(sys._MEIPASS, relative_path)
     return os.path.abspath(relative_path)
 
-save_path = "result.xlsx"
+save_path = "example_result.xlsx"
 
 def load_anp_emotion_dict(txt_path):
     """加载 ANP → 情绪得分字典的嵌套结构"""
