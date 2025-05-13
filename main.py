@@ -10,7 +10,7 @@ import sys
 
 
 def load_anp_emotion_dict(txt_path):
-    """加载 ANP → 情绪得分字典的嵌套结构"""
+    """加载 ANP:emotion score 字典的嵌套结构"""
     emotion_dict = {}
     with open(txt_path, "r", encoding="utf-8") as f:
         current_anp = None
@@ -40,39 +40,26 @@ def get_max_emotion_score_for_anp(anp_name, emotion_dict):
     return ("N/A", None)
 
 
-def save_to_excel(image_name, anp_results, iqa_score, nima_mean, nima_std, max_emotions, excel_path="result.xlsx"):
-    iqa_keys = ["quality", "brightness", "noisiness", "colorfullness", "sharpness"]
-    nima_keys = ["NIMA mean", "NIMA std"]
+def save_folder_results_to_excel(results, excel_path, subdir_name):
+    """
+    results: List of dicts, each containing
+        'image', 'emotion_score', 'iqa_avg', 'nima_mean', 'nima_std'
+    """
+    wb = Workbook()
+    sheet = wb.active
+    sheet.append(["帖子名称", f"{subdir_name}", "图片数量", len(results)])
+    sheet.append(["Image", "Weighted Emotion Score", "IQA Average", "NIMA Mean", "NIMA Std"])
 
-    row_data = [image_name]
-    for anp, score, emotion, emo_score in max_emotions:
-        row_data.extend(
-            [anp, round(float(score), 4), emotion, round(float(emo_score), 4) if emo_score is not None else ""])
+    for entry in results:
+        row = [
+            entry["image"],
+            round(entry["emotion_score"], 4) if entry["emotion_score"] is not None else "",
+            round(entry["iqa_avg"], 4) if entry["iqa_avg"] is not None else "",
+            round(entry["nima_mean"], 4),
+            round(entry["nima_std"], 4),
+        ]
+        sheet.append(row)
 
-    for key in iqa_keys:
-        value = iqa_score.get(key, "")
-        if hasattr(value, 'item'):  # tensor 转 float
-            value = value.item()
-        row_data.append(round(float(value), 4) if value != "" else "")
-
-    row_data.append(round(float(nima_mean), 4))
-    row_data.append(round(float(nima_std), 4))
-
-    if os.path.exists(excel_path):
-        wb = load_workbook(excel_path)
-        sheet = wb.active
-    else:
-        wb = Workbook()
-        sheet = wb.active
-        # 表头初始化
-        header = ["Image"]
-        for i in range(len(anp_results[:10])):  # 限制为10个
-            header.extend([f"ANP {i + 1}", f"Score {i + 1}", f"Top Emotion {i + 1}", f"Emotion Score {i + 1}"])
-        header.extend(iqa_keys)
-        header.extend(nima_keys)
-        sheet.append(header)
-
-    sheet.append(row_data)
     wb.save(excel_path)
 
 
@@ -84,6 +71,21 @@ def get_all_max_emotions_for_top_anps(anp_results, emotion_dict):
         results.append((anp, anp_score, emotion, score))
     return results
 
+def wtd_avg(max_emotions):
+    weighted_sum = 0.0
+    weight_total = 0.0
+    for anp, anp_score, _, emotion_score in max_emotions:
+        if emotion_score is not None:
+            weighted_sum += anp_score * emotion_score
+            weight_total += anp_score
+
+    if weight_total > 0:
+        weighted_emotion_score = weighted_sum / weight_total
+    else:
+        weighted_emotion_score = 0  # 或者设为 0.0 或 "N/A"
+
+    return weighted_emotion_score
+
 
 save_path = "result.xlsx"
 emotion_scores_dict = load_anp_emotion_dict("anp_emotion_scores.txt")
@@ -91,39 +93,63 @@ emotion_scores_dict = load_anp_emotion_dict("anp_emotion_scores.txt")
 img_dir = os.path.join(os.getcwd(), "imgs")
 dir_list = [f for f in os.listdir(img_dir) if os.path.isdir(os.path.join(img_dir, f))]
 
+
 for sub_dir in dir_list:
+    # print(sub_dir)
+    # exit()
     full_dir = os.path.join(img_dir, sub_dir)
     jpg_files = glob.glob(os.path.join(full_dir, "*.jpg"))
     jpg_files.sort(key=lambda x: os.path.basename(x))
-
-    # print(jpg_files)
+    
+    print(f"Processing folder: {sub_dir}")
+    results = []
 
     for jpg in jpg_files:
         print(f"NOW PROCESSING {[os.path.basename(jpg)]}")
 
+        # ANP
         anp_results = match_anp_with_image(jpg)
         max_emotions = get_all_max_emotions_for_top_anps(anp_results, emotion_scores_dict)
-
-        # for desc, score in anp_results:
-        #     print(f"{desc:30s} → original score: {score:.4f}")
-        # print()
+        wtd_avg_score = wtd_avg(max_emotions)
 
         print("Top 10 ANPs and their most intense emotions:")
         for anp, anp_score, emotion, emotion_score in max_emotions:
-            print(f"{anp:30s}: original score: {anp_score:.4f} → {emotion:10s}: {emotion_score:.4f}")
+            print(f"{anp:30s}: original score: {anp_score:.4f} → Emotion Type: {emotion:10s}: {emotion_score:.4f}")
+        print(wtd_avg_score)
         print()
 
-        #
+        # IQA
         iqa_score = run_clip_iqa(jpg)
         iqa_score = {k: float(v) for k, v in iqa_score.items()}  # 转换 tensor → float
+
+        iqa_values= list(iqa_score.values())
+        if iqa_values:
+            iqa_avg = sum(iqa_values) / len(iqa_values)
+        else:
+            iqa_avg = -1
+
         print("CLIP-IQA score:")
         for k, v in iqa_score.items():
             print(f"{k}: {v}")
         print()
 
+        # NIMA
         nima_mean, nima_std = extract_features(jpg, resize=True)
         print("NIMA Score : %0.3f +- (%0.3f)" % (nima_mean, nima_std))
-        print("=" * 60)
         print()
 
-        save_to_excel(os.path.basename(jpg), anp_results, iqa_score, nima_mean, nima_std, max_emotions)
+        results.append({
+            "image": os.path.basename(jpg),
+            "emotion_score": wtd_avg_score,
+            "iqa_avg": iqa_avg,
+            "nima_mean": nima_mean,
+            "nima_std": nima_std
+        })
+
+        save_path = os.path.join(full_dir, f"{sub_dir}.xlsx")
+        save_folder_results_to_excel(results, save_path, sub_dir)
+        print("=" * 60)
+
+
+
+
