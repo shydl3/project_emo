@@ -29,7 +29,7 @@ def run_clip_iqa(image_path):
 
 # 测试用例
 if __name__ == "__main__":
-    image_path = "imgs/1-1.jpg"
+    image_path = "imgs/testdir1/1-1.jpg"
     result = run_clip_iqa(image_path)
     print("CLIP-IQA 分数:")
     for k, v in result.items():

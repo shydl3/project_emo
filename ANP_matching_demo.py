@@ -16,7 +16,7 @@ with open(anp_file, "r", encoding="utf-8") as f:
 # Step 2: 加载模型和图像
 device = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
 print("当前使用设备：", device)
-image_path = "./imgs/1-1.jpg"
+image_path = "imgs/testdir1/1-1.jpg"
 model, preprocess = clip.load("ViT-B/32", device=device)
 image = preprocess(Image.open(image_path)).unsqueeze(0).to(device)
 

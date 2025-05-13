@@ -16,7 +16,7 @@ transform = transforms.Compose([
     transforms.ToTensor()
 ])
 
-img = Image.open("imgs/1-1.jpg").convert("RGB")
+img = Image.open("imgs/testdir1/1-1.jpg").convert("RGB")
 img_tensor = transform(img).unsqueeze(0).to(device)
 
 # 推理
