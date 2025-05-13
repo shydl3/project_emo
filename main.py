@@ -98,7 +98,7 @@ for sub_dir in dir_list:
     # print(sub_dir)
     # exit()
     full_dir = os.path.join(img_dir, sub_dir)
-    jpg_files = glob.glob(os.path.join(full_dir, "*.jpg"))
+    jpg_files = glob.glob(os.path.join(full_dir, "*.png"))
     jpg_files.sort(key=lambda x: os.path.basename(x))
     
     print(f"Processing folder: {sub_dir}")
