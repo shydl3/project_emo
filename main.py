@@ -5,6 +5,7 @@ from run_clip_iqa import run_clip_iqa
 from nima.evaluate_inception_resnet import extract_features
 from openpyxl import Workbook, load_workbook
 from openpyxl.utils import get_column_letter
+from openpyxl.utils.exceptions import InvalidFileException
 import os
 import sys
 
@@ -40,27 +41,57 @@ def get_max_emotion_score_for_anp(anp_name, emotion_dict):
     return ("N/A", None)
 
 
-def save_folder_results_to_excel(results, excel_path, subdir_name):
+def save_folder_results_to_excel(summary_excel_path, subdir_name, results):
     """
-    results: List of dicts, each containing
-        'image', 'emotion_score', 'iqa_avg', 'nima_mean', 'nima_std'
+    计算并保存每个文件夹中以 *-1.png 和 *-2.png 结尾图片的平均指标值到 Excel。
+    不记录图片数量。
     """
-    wb = Workbook()
-    sheet = wb.active
-    sheet.append(["帖子名称", f"{subdir_name}", "图片数量", len(results)])
-    sheet.append(["Image", "Weighted Emotion Score", "IQA Average", "NIMA Mean", "NIMA Std"])
+    def compute_avg(filtered_results):
+        if not filtered_results:
+            return (0, 0, 0, 0)
+        return (
+            round(sum(r["emotion_score"] for r in filtered_results) / len(filtered_results), 4),
+            round(sum(r["iqa_avg"] for r in filtered_results) / len(filtered_results), 4),
+            round(sum(r["nima_mean"] for r in filtered_results) / len(filtered_results), 4),
+            round(sum(r["nima_std"] for r in filtered_results) / len(filtered_results), 4),
+        )
 
-    for entry in results:
-        row = [
-            entry["image"],
-            round(entry["emotion_score"], 4) if entry["emotion_score"] is not None else "",
-            round(entry["iqa_avg"], 4) if entry["iqa_avg"] is not None else "",
-            round(entry["nima_mean"], 4),
-            round(entry["nima_std"], 4),
-        ]
-        sheet.append(row)
+    group_1 = [r for r in results if r["image"].endswith("-1.png")]
+    group_2 = [r for r in results if r["image"].endswith("-2.png")]
 
-    wb.save(excel_path)
+    avg_1 = compute_avg(group_1)
+    avg_2 = compute_avg(group_2)
+
+    # 创建或加载 Excel
+    if os.path.exists(summary_excel_path):
+        try:
+            wb = load_workbook(summary_excel_path)
+            sheet = wb.active
+        except InvalidFileException:
+            wb = Workbook()
+            sheet = wb.active
+            sheet.append([
+                "帖子名称",
+                "Emotion Avg (原图)", "IQA Avg (原图)", "NIMA Mean (原图)", "NIMA Std (原图)",
+                "Emotion Avg (漫画)", "IQA Avg (漫画)", "NIMA Mean (漫画)", "NIMA Std (漫画)"
+            ])
+    else:
+        wb = Workbook()
+        sheet = wb.active
+        sheet.append([
+            "帖子名称",
+            "Emotion Avg (原图)", "IQA Avg (原图)", "NIMA Mean (原图)", "NIMA Std (原图)",
+            "Emotion Avg (漫画)", "IQA Avg (漫画)", "NIMA Mean (漫画)", "NIMA Std (漫画)"
+        ])
+
+    # 添加一行数据
+    sheet.append([
+        subdir_name,
+        *avg_1,
+        *avg_2
+    ])
+
+    wb.save(summary_excel_path)
 
 
 def get_all_max_emotions_for_top_anps(anp_results, emotion_dict):
@@ -103,7 +134,6 @@ def save_txt_log(results, txt_path, subdir_name):
             )
 
 
-
 save_path = "result.xlsx"
 emotion_scores_dict = load_anp_emotion_dict("anp_emotion_scores.txt")
 
@@ -120,9 +150,10 @@ for sub_dir in dir_list:
     
     print(f"Processing folder: {sub_dir}")
     results = []
+    forlder_results = []
 
     for jpg in jpg_files:
-        print(f"NOW PROCESSING {[os.path.basename(jpg)]}")
+        print(f"NOW PROCESSING {sub_dir} / {[os.path.basename(jpg)]}")
 
         # ANP
         anp_results = match_anp_with_image(jpg)
@@ -165,12 +196,16 @@ for sub_dir in dir_list:
 
         # save_path = os.path.join(full_dir, f"{sub_dir}.xlsx")
         # save_folder_results_to_excel(results, save_path, sub_dir)
-        
+
         txt_path = os.path.join(full_dir, f"{sub_dir}_结果日志.txt")
         save_txt_log(results, txt_path, sub_dir)
 
-        print("=" * 60)
-
+    # 保存到总表格中（主目录下）
+    # print(results)
+    # exit()
+    summary_excel = os.path.join(os.getcwd(), "result.xlsx")
+    save_folder_results_to_excel(summary_excel, sub_dir, results)
+    print("=" * 60) 
 
 
 
