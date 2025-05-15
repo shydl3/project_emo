@@ -87,6 +87,23 @@ def wtd_avg(max_emotions):
     return weighted_emotion_score
 
 
+def save_txt_log(results, txt_path, subdir_name):
+    with open(txt_path, "w", encoding="utf-8") as f:
+        f.write(f"帖子名称：{subdir_name}\n")
+        f.write(f"图片数量：{len(results)}\n")
+        f.write(f"{'Image':20s} | {'Emotion Score':14s} | {'IQA Avg':10s} | {'NIMA Mean':10s} | {'NIMA Std':10s}\n")
+        f.write("-" * 75 + "\n")
+        for entry in results:
+            f.write(
+                f"{entry['image']:20s} | "
+                f"{entry['emotion_score'] if entry['emotion_score'] is not None else '':14.4f} | "
+                f"{entry['iqa_avg'] if entry['iqa_avg'] is not None else '':10.4f} | "
+                f"{entry['nima_mean']:10.4f} | "
+                f"{entry['nima_std']:10.4f}\n"
+            )
+
+
+
 save_path = "result.xlsx"
 emotion_scores_dict = load_anp_emotion_dict("anp_emotion_scores.txt")
 
@@ -112,11 +129,11 @@ for sub_dir in dir_list:
         max_emotions = get_all_max_emotions_for_top_anps(anp_results, emotion_scores_dict)
         wtd_avg_score = wtd_avg(max_emotions)
 
-        print("Top 10 ANPs and their most intense emotions:")
-        for anp, anp_score, emotion, emotion_score in max_emotions:
-            print(f"{anp:30s}: original score: {anp_score:.4f} → Emotion Type: {emotion:10s}: {emotion_score:.4f}")
-        print(wtd_avg_score)
-        print()
+        # print("Top 10 ANPs and their most intense emotions:")
+        # for anp, anp_score, emotion, emotion_score in max_emotions:
+        #     print(f"{anp:30s}: original score: {anp_score:.4f} → Emotion Type: {emotion:10s}: {emotion_score:.4f}")
+        # print(wtd_avg_score)
+        # print()
 
         # IQA
         iqa_score = run_clip_iqa(jpg)
@@ -128,15 +145,15 @@ for sub_dir in dir_list:
         else:
             iqa_avg = -1
 
-        print("CLIP-IQA score:")
-        for k, v in iqa_score.items():
-            print(f"{k}: {v}")
-        print()
+        # print("CLIP-IQA score:")
+        # for k, v in iqa_score.items():
+        #     print(f"{k}: {v}")
+        # print()
 
         # NIMA
         nima_mean, nima_std = extract_features(jpg, resize=True)
-        print("NIMA Score : %0.3f +- (%0.3f)" % (nima_mean, nima_std))
-        print()
+        # print("NIMA Score : %0.3f +- (%0.3f)" % (nima_mean, nima_std))
+        # print()
 
         results.append({
             "image": os.path.basename(jpg),
@@ -146,8 +163,12 @@ for sub_dir in dir_list:
             "nima_std": nima_std
         })
 
-        save_path = os.path.join(full_dir, f"{sub_dir}.xlsx")
-        save_folder_results_to_excel(results, save_path, sub_dir)
+        # save_path = os.path.join(full_dir, f"{sub_dir}.xlsx")
+        # save_folder_results_to_excel(results, save_path, sub_dir)
+        
+        txt_path = os.path.join(full_dir, f"{sub_dir}_结果日志.txt")
+        save_txt_log(results, txt_path, sub_dir)
+
         print("=" * 60)
 
 
