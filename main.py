@@ -194,9 +194,6 @@ for sub_dir in dir_list:
             "nima_std": nima_std
         })
 
-        # save_path = os.path.join(full_dir, f"{sub_dir}.xlsx")
-        # save_folder_results_to_excel(results, save_path, sub_dir)
-
         txt_path = os.path.join(full_dir, f"{sub_dir}_结果日志.txt")
         save_txt_log(results, txt_path, sub_dir)
 
